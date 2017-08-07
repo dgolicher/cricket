@@ -1,5 +1,5 @@
 ---
-title: "Has batting in test cricket changed?"
+title: "Boycott's scoring rate in context"
 author: "Duncan Golicher"
 date: "2017-8-4"
 output: html_document
@@ -15,9 +15,11 @@ A Github pull will bring down the resulting csv files needed to reproduce my ana
 
 https://github.com/dgolicher/cricket
 
-To place Boycott in context I looked at the strike rate for some English batsmen.
+To place Boycott in context I looked at the scoring rate for some other English batsmen.
 
-## Strike rate for innings over 40
+## Scoring rate for innings over 40
+
+I will only consider innings in which the batsman made a score over 40 and take only English batsmen into account.
 
 ```{r,warning=FALSE,message=FALSE}
 library(ggplot2)
@@ -33,13 +35,20 @@ dd$Batsman[grep("AN Cook",dd$Player)]<-"Cook"
 dd$Batsman[grep("Root",dd$Player)]<-"Root"
 dd$Batsman[grep("Botham",dd$Player)]<-"Botham"
 dd$Batsman[grep("Atherton",dd$Player)]<-"Atherton"
-dd$Batsman[grep("Vaugan",dd$Player)]<-"Vaughan"
+dd$Batsman[grep("Vaughan",dd$Player)]<-"Vaughan"
 dd$Batsman[grep("Pietersen",dd$Player)]<-"Pietersen"
 dd<-subset(dd,dd$Year>1970)
 dd<-subset(dd,dd$Country=="ENG")
 library(ggplot2)
+theme_set(theme_bw())
 g0<-ggplot(dd,aes(x=Date,y=SR,colour=Batsman))
 g1<-g0+geom_point(size=0.5,aes(text=txt))+geom_smooth(se=FALSE) 
 ggplotly(g1)
 ```
+
+## Interpretation
+
+Geoffrey was always an opening batsman so having a low scoring rate is understandable. It would be unfair to compare his batting directly to a lower order striker of the ball such as Botham. Michael Vaughan was an opener who sometimes batted lower down the order. Root typically bats at between 3 and 5. Even so, Boycott's scoring rate on his longer innings is particularly low, and it was well below par even for the times in which he played. Boycottt hovered around 32 runs per hundred balls when par was 46. Atherton was considered slow, but stil scored at an average of around 40. Cook has played some slow innings, but his average scoring rate is quite variable. 
+So, Boycott was an extraordinarily slow scorer with a style of play that would not really be appropriate for modern test cricket in which the par scoring rate for longer innings  has increased to 60 runs per hundred balls. This would be twice the rate that Boycott managed on average. It is noticeable that Boycot simply never scored quickly. Even Michael Atherton managed an innings of 57 against Australia scoring at 88 runs per hundred balls, i.e. nearly a run a ball. The fastest scoring Boycott managed was 63 runs per hundred balls, against New Zealand in 1973, which is the par rate today.
+
 
