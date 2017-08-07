@@ -1,0 +1,215 @@
+---
+title: "Has batting in test cricket changed?"
+author: "Duncan Golicher"
+date: "2017-8-4"
+output: html_document
+---
+
+## Introduction
+
+Geofrey Boycott constantly laments the inability of modern batsmen to build innings in his model After listening to another of his discourses I decided to have a look at the statistics myself.
+
+The first challenge was finding the data online. Although Wisden and others possess all the necessary data it is presented as bite sized chunks through searchable web sites. I found an R package called cricketr with a function to download innings from ESPNcricinfo. However that didn't really help directly as it just pulled down the records for individual batmen and suggested that the ID number of the player had to be looked up first. The website presents all the data ordered from the highest score to the lowest in pages containing 50 records at a time as 1815 pages.  So although it took R two hours to pull down the data I was able to set it up to iterate over the pages and bring it all in just by modifying a few lines in the cricketr function.
+
+```{r}
+library("cricketr")
+library("XML")
+```
+
+```{r,eval=FALSE}
+
+
+i<-1
+url<-paste("http://stats.espncricinfo.com/ci/engine/stats/index.html?class=1;page=",i,";template=results;type=batting;view=innings",sep="")
+#
+
+tables <-readHTMLTable(url, stringsAsFactors = F)
+t <- tables$"Innings by innings list"
+
+for (i in 2:1815)
+{
+
+url<-paste("http://stats.espncricinfo.com/ci/engine/stats/index.html?class=1;page=",i,";template=results;type=batting;view=innings",sep="")
+try(tables <-readHTMLTable(url, stringsAsFactors = F))
+try(tt <- tables$"Innings by innings list")
+try(t<-rbind(t,tt))
+}
+#write.csv(d,"innings-all.csv")
+```
+
+This is all a bit of a hack as it would need to be run through again in order to update the data table in the future. However it worked for the purpose in hand, and it produced all the historical records for all test batsmen up to the beginning of August 2017. 
+
+
+## Sorting out the data
+
+Once I had the data the next challenge involved separating the information in the columns into a useable form. The Runs column included an asterix for not out innings that led it to be interpreted as a factor. The player column included the team in brackets, but there was no column for the country for which the batman played. The date column needed converting into the date format.
+
+```{r,message=FALSE,warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+d<-read.csv("innings-all.csv")
+
+d$Player<-as.character(d$Player) ## Can leave the team name in
+d$Country<- unlist(sub("\\).*", "", sub(".*\\(", "", d$Player)) ) ## Extract the country from the player's name
+d$Notout<-gsub('[0-9]+', '', d$Runs) ## Set up a column for not out innings
+d$Notout<-gsub("\\*","TRUE",d$Notout) ## Convert asterixs
+d$Runs<-as.numeric(gsub("\\D+", "", d$Runs)) ## Now turn the runs as a numeric column
+d$Date<-as.Date(d$Start.Date,format="%d %b %Y") ## Set up the date format
+d$Year<-year(d$Date)
+d$Day<-day(d$Date)
+d$Month<-month(d$Date)
+d$Yday<-yday(d$Date)
+d$BF<-as.numeric(as.character(d$BF))
+d$SR<-as.numeric(as.character(d$SR))
+d$Fours<-as.numeric(as.character(d$X4s))
+d$Sixs<-as.numeric(as.character(d$X6s))
+
+write.csv(d,"innings_fixed.csv")
+```
+
+Unfortunately some of the older records do not include data for balls faced so we can't calculate the strike rate.
+
+The file can be downloaded here.
+
+https://www.dropbox.com/s/45ir9yk1ppaa4mb/innings_fixed.csv?dl=0
+
+
+## Downloading match data
+
+The following code will download and fix some of the issues with the data on match innnings..
+
+```{r,eval=FALSE}
+
+i<-1
+url<-paste("http://stats.espncricinfo.com/ci/engine/stats/index.html?class=1;page=",i,";template=results;type=team;view=innings",sep="")
+
+tables <-readHTMLTable(url, stringsAsFactors = F)
+t <- tables$"Innings by innings list"
+
+for (i in 2:165)
+{
+
+url<-paste("http://stats.espncricinfo.com/ci/engine/stats/index.html?class=1;page=",i,";template=results;type=team;view=innings",sep="")
+
+tables <-readHTMLTable(url, stringsAsFactors = F)
+tt <- tables$"Innings by innings list"
+t<-rbind(t,tt)
+}
+
+t$Total<-as.numeric(unlist(sub("\\/.*", "", t$Score)) )
+t$Date<-as.Date(t$"Start Date",format="%d %b %Y") ## Set up the date format
+t$Year<-year(t$Date)
+t$Day<-day(t$Date)
+t$Month<-month(t$Date)
+t$Yday<-yday(t$Date)
+t$RPO<-as.numeric(as.character(t$RPO))
+write.csv(t,"match_innings.csv")
+
+```
+
+## Have test innings changed?
+
+To answer this question I decided to focus on the first innings of every match played since 1970. The reasoning behind this is that many other factors come into play in later innings as the game develops. There is a fairly consistent and uniform aim in the first innings of every game, which is simply to make as many runs as the conditions and quality of the bowling allow. Very few first innings are declared or cut short by the weather. 
+
+```{r,message=FALSE,warning=FALSE}
+d<-read.csv("match_innings.csv")
+d$Date<-as.Date(d$Date)
+d$Overs<-as.numeric(as.character(d$Overs))
+dd<-subset(d,d$Inns==1)
+dd<-subset(dd,dd$Year>1970)
+```
+
+## Total scores.
+
+Has there been any change in mean total score for the first innings? Plotting the data and fitting a spline would show up any trend within the noise.
+
+```{r}
+library(plotly)
+theme_set(theme_bw())
+
+g0<-ggplot(dd,aes(x=Date,y=Total))
+g1<-g0+geom_point()+geom_smooth()
+ggplotly(g1)
+```
+
+The mean for first innings total hit a low of 314 in 1980 and dipped again at the end of 1990's but is now higher than it is has ever been at 369.
+
+It might be argued that this could be attributable to changes in which teams are playing on which grounds. Looking at the individual patterns for each team.
+
+```{r}
+g1<-g1+facet_wrap("Team")
+ggplotly(g1)
+```
+
+The trend is consistent for most teams, although the sad decline of the West Indian team since the 70s is evident. Bangladesh have improved greatly. Zimbabwe is something of a special case. South Africa were banned from test cricket at the beginning of the period. So it does look to the eye as if there is a general trend. A statistical model of this could take team and ground as random effects in order to hold for mean performances by each team and on each ground and test for a fixed effect of time (linear trend since 1970)
+
+
+```{r,message=FALSE,warning=FALSE}
+library(lmerTest)
+mod<-lmer(data=dd,Total~Year+(1|Team)+(1|Ground))
+summary(mod)
+```
+
+This shows a significant linear trend of an increase in mean first innings scores of 1.25 runs per year since 1970 after taking into account difference between the teams playing.
+
+Fitting the model with an interaction between year and team would detect which teams did not follow the trend.
+
+```{r}
+mod<-lmer(data=dd,Total~Year*Team+(1|Ground))
+summary(mod)
+```
+
+A careful inspection of the table shows that the formal statistics based on the assumption of linear trends (rather than the curvature of the fitted splines), confirm the statistical significance of the observations. The West Indies and India have significantly higher first innings totals that the reference team used in the model output table (Australia) over the whole period, but the decine is shown in the interaction term.
+
+
+## Scoring rate
+
+It could be that first innings scores have increased over time simply because they are taking longer in terms of overs to compelete. However we can also look at the strike rate over the innings in terms of runs scored per over. Has there been any change in mean scoring rate for the first innings expressed as runs per over? 
+
+```{r}
+g0<-ggplot(dd,aes(x=Date,y=RPO))
+g1<-g0+geom_point()+geom_smooth()
+ggplotly(g1)
+```
+
+There is a clear ramping up of the strike rate that seems to correspond to the increasing influence of twenty20 games in the mid 2000's. Strike rate moves up from a fairly consistent 2.7 to 2.9 runs per over to a mean of 3.1 to 3.4 in the first innings of modern (post 2020) tests. Again a facet wrap can look at this per team
+
+```{r}
+g1<-g1+facet_wrap("Team")
+ggplotly(g1)
+```
+
+
+```{r,message=FALSE,warning=FALSE}
+
+mod<-lmer(data=dd,RPO~Year+(1|Team)+(1|Ground))
+summary(mod)
+```
+
+
+
+## Strike rate for innings over 40
+
+```{r,warning=FALSE,message=FALSE}
+d<-read.csv("innings_fixed.csv")
+d$Date<-as.Date(d$Date)
+
+dd<-subset(d, d$Runs>40)
+dd$txt<-paste(dd$Player,dd$Runs,dd$Opposition,sep=" ")
+dd$Batsman<-"Other"
+dd$Batsman[grep("Boycott",dd$Player)]<-"Boycott"
+dd$Batsman[grep("AN Cook",dd$Player)]<-"Cook"
+dd$Batsman[grep("Root",dd$Player)]<-"Root"
+dd$Batsman[grep("Botham",dd$Player)]<-"Botham"
+dd$Batsman[grep("Atherton",dd$Player)]<-"Atherton"
+dd$Batsman[grep("Vaugan",dd$Player)]<-"Vaughan"
+dd$Batsman[grep("Pietersen",dd$Player)]<-"Pietersen"
+dd<-subset(dd,dd$Year>1970)
+dd<-subset(dd,dd$Country=="ENG")
+library(ggplot2)
+g0<-ggplot(dd,aes(x=Date,y=SR,colour=Batsman))
+g1<-g0+geom_point(size=0.5,aes(text=txt))+geom_smooth(se=FALSE) 
+ggplotly(g1)
+```
+

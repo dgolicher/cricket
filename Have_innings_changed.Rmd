@@ -1,0 +1,117 @@
+---
+title: "Has batting in test cricket changed?"
+author: "Duncan Golicher"
+date: "2017-8-4"
+output: html_document
+---
+
+## Introduction
+
+Geofrey Boycott constantly laments the inability of modern batsmen to build innings in his model After listening to another of his discourses I decided to have a look at the statistics myself.
+
+## Have test innings changed?
+
+To answer the question I decided to focus on the first innings of every match played since 1970. The reasoning behind this is that many other factors come into play in later innings as the game develops. There is a fairly consistent and uniform aim in the first innings of every game, which is simply to make as many runs as the conditions and quality of the bowling allow. Very few first innings are declared or cut short by the weather. 
+
+```{r,message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(warning = FALSE,message = FALSE,error = TRUE)
+d<-read.csv("match_innings.csv")
+d$Date<-as.Date(d$Date)
+d$Overs<-as.numeric(as.character(d$Overs))
+dd<-subset(d,d$Inns==1)
+dd<-subset(dd,dd$Year>1970)
+```
+
+## Total scores.
+
+Has there been any change in mean total score for the first innings? Plotting the data and fitting a spline would show up any trend within the noise.
+
+```{r}
+library(plotly)
+theme_set(theme_bw())
+
+g0<-ggplot(dd,aes(x=Date,y=Total))
+g1<-g0+geom_point()+geom_smooth()
+ggplotly(g1)
+```
+
+The mean for first innings total hit a low of 314 in 1980 and dipped again at the end of 1990's but is now higher than it is has ever been at 369.
+
+It might be argued that this could be attributable to changes in which teams are playing on which grounds. Looking at the individual patterns for each team.
+
+```{r}
+g1<-g1+facet_wrap("Team")
+ggplotly(g1)
+```
+
+The trend is consistent for most teams, although the sad decline of the West Indian team since the 70s is evident. Bangladesh have improved greatly. Zimbabwe is something of a special case. South Africa were banned from test cricket at the beginning of the period. So it does look to the eye as if there is a general trend. A statistical model of this could take team and ground as random effects in order to hold for mean performances by each team and on each ground and test for a fixed effect of time (linear trend since 1970)
+
+
+```{r,message=FALSE,warning=FALSE}
+library(lmerTest)
+mod<-lmer(data=dd,Total~Year+(1|Team)+(1|Ground))
+summary(mod)
+```
+
+This shows a significant linear trend of an increase in mean first innings scores of 1.25 runs per year since 1970 after taking into account difference between the teams playing.
+
+Fitting the model with an interaction between year and team would detect which teams did not follow the trend.
+
+```{r}
+mod<-lmer(data=dd,Total~Year*Team+(1|Ground))
+summary(mod)
+```
+
+A careful inspection of the table shows that the formal statistics based on the assumption of linear trends (rather than the curvature of the fitted splines), confirm the statistical significance of the observations. The West Indies and India have significantly higher first innings totals that the reference team used in the model output table (Australia) over the whole period, but the decine is shown in the interaction term.
+
+
+## Scoring rate
+
+It could be that first innings scores have increased over time simply because they are taking longer in terms of overs to compelete. However we can also look at the strike rate over the innings in terms of runs scored per over. Has there been any change in mean scoring rate for the first innings expressed as runs per over? 
+
+```{r}
+g0<-ggplot(dd,aes(x=Date,y=RPO))
+g1<-g0+geom_point()+geom_smooth()
+ggplotly(g1)
+```
+
+There is a clear ramping up of the strike rate that seems to correspond to the increasing influence of twenty20 games in the mid 2000's. Strike rate moves up from a fairly consistent 2.7 to 2.9 runs per over to a mean of 3.1 to 3.4 in the first innings of modern (post 2020) tests. Again a facet wrap can look at this per team
+
+```{r}
+g1<-g1+facet_wrap("Team")
+ggplotly(g1)
+```
+
+
+```{r,message=FALSE,warning=FALSE}
+
+mod<-lmer(data=dd,RPO~Year+(1|Team)+(1|Ground))
+summary(mod)
+```
+
+
+
+## Strike rate for innings over 40
+
+```{r,warning=FALSE,message=FALSE}
+d<-read.csv("innings_fixed.csv")
+d$Date<-as.Date(d$Date)
+
+dd<-subset(d, d$Runs>40)
+dd$txt<-paste(dd$Player,dd$Runs,dd$Opposition,sep=" ")
+dd$Batsman<-"Other"
+dd$Batsman[grep("Boycott",dd$Player)]<-"Boycott"
+dd$Batsman[grep("AN Cook",dd$Player)]<-"Cook"
+dd$Batsman[grep("Root",dd$Player)]<-"Root"
+dd$Batsman[grep("Botham",dd$Player)]<-"Botham"
+dd$Batsman[grep("Atherton",dd$Player)]<-"Atherton"
+dd$Batsman[grep("Vaugan",dd$Player)]<-"Vaughan"
+dd$Batsman[grep("Pietersen",dd$Player)]<-"Pietersen"
+dd<-subset(dd,dd$Year>1970)
+dd<-subset(dd,dd$Country=="ENG")
+library(ggplot2)
+g0<-ggplot(dd,aes(x=Date,y=SR,colour=Batsman))
+g1<-g0+geom_point(size=0.5,aes(text=txt))+geom_smooth(se=FALSE) 
+ggplotly(g1)
+```
+
