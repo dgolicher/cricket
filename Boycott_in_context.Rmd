@@ -1,0 +1,45 @@
+---
+title: "Has batting in test cricket changed?"
+author: "Duncan Golicher"
+date: "2017-8-4"
+output: html_document
+---
+
+## Introduction
+
+After listening to Geoffrey Boycott complaining about English batting I had a look at the statistics myself.  I placed some code to download the data here
+
+http://rpubs.com/dgolicher/cricket_download
+
+A Github pull will bring down the resulting csv files needed to reproduce my analysis
+
+https://github.com/dgolicher/cricket
+
+To place Boycott in context I looked at the strike rate for some English batsmen.
+
+## Strike rate for innings over 40
+
+```{r,warning=FALSE,message=FALSE}
+library(ggplot2)
+library(plotly)
+d<-read.csv("innings_fixed.csv")
+d$Date<-as.Date(d$Date)
+
+dd<-subset(d, d$Runs>40)
+dd$txt<-paste(dd$Player,dd$Runs,dd$Opposition,sep=" ")
+dd$Batsman<-"Other"
+dd$Batsman[grep("Boycott",dd$Player)]<-"Boycott"
+dd$Batsman[grep("AN Cook",dd$Player)]<-"Cook"
+dd$Batsman[grep("Root",dd$Player)]<-"Root"
+dd$Batsman[grep("Botham",dd$Player)]<-"Botham"
+dd$Batsman[grep("Atherton",dd$Player)]<-"Atherton"
+dd$Batsman[grep("Vaugan",dd$Player)]<-"Vaughan"
+dd$Batsman[grep("Pietersen",dd$Player)]<-"Pietersen"
+dd<-subset(dd,dd$Year>1970)
+dd<-subset(dd,dd$Country=="ENG")
+library(ggplot2)
+g0<-ggplot(dd,aes(x=Date,y=SR,colour=Batsman))
+g1<-g0+geom_point(size=0.5,aes(text=txt))+geom_smooth(se=FALSE) 
+ggplotly(g1)
+```
+

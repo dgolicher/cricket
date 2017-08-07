@@ -9,6 +9,8 @@ output: html_document
 
 Cricket could be a rich source of data for carrying aut some fun stastistics. It would be nice to have access to the full relational data base used on test match special, but that is not available directly online. Although Wisden and others do possess a lot of data it is typically presented as bite sized chunks through their searchable web sites. I did find an R package called cricketr with a function to download innings from ESPNcricinfo. Unfortunately  that didn't really help directly as it just pulled down the records for individual batmen and suggested that the ID number of the player had to be looked up first. The website presents all the data ordered from the highest score to the lowest in pages containing 50 records at a time as 1815 pages.  So although it took R two hours to pull down the data I was able to set it up to iterate over the pages and bring it all in just by modifying a few lines in the cricketr function.
 
+## Data files uploaded to https://github.com/dgolicher/cricket
+
 ```{r}
 library("cricketr")
 library("XML")

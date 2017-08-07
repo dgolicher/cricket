@@ -7,19 +7,28 @@ output: html_document
 
 ## Introduction
 
-Geofrey Boycott constantly laments the inability of modern batsmen to build innings in his model After listening to another of his discourses I decided to have a look at the statistics myself.
+Geofrey Boycott constantly laments the inability of modern batsmen to build innings in his model After listening to another of his discourses I decided to have a look at the statistics myself.  I placed some code to download the data here
+
+http://rpubs.com/dgolicher/cricket_download
+
+A Github pull will bring down the resulting csv files needed to reproduce my analysis
+
+https://github.com/dgolicher/cricket
 
 ## Have test innings changed?
 
-To answer the question I decided to focus on the first innings of every match played since 1970. The reasoning behind this is that many other factors come into play in later innings as the game develops. There is a fairly consistent and uniform aim in the first innings of every game, which is simply to make as many runs as the conditions and quality of the bowling allow. Very few first innings are declared or cut short by the weather. 
+To answer the question I decided to focus only on the first innings of every match played since 1970. The reasoning behind this is that many other factors come into play in later innings as the game develops. However there is a fairly consistent and uniform aim in the first innings of every game, which is simply to make as many runs as the conditions and quality of the bowling allow. Very few first innings are declared or cut short by the weather. So this produces a good baseline for comparisons
 
 ```{r,message=FALSE,warning=FALSE}
 knitr::opts_chunk$set(warning = FALSE,message = FALSE,error = TRUE)
-d<-read.csv("match_innings.csv")
-d$Date<-as.Date(d$Date)
-d$Overs<-as.numeric(as.character(d$Overs))
-dd<-subset(d,d$Inns==1)
-dd<-subset(dd,dd$Year>1970)
+d<-read.csv("match_innings.csv") ## Get this from github
+d$Date<-as.Date(d$Date) ## Need to restore the format to date
+d$Overs<-as.numeric(as.character(d$Overs)) ## Forgot to do this. Convert to numeric
+
+d$txt<-paste(d$Team,d$Opposition,d$Ground,sep=" ")
+
+dd<-subset(d,d$Inns==1) ## Just take first innings
+dd<-subset(dd,dd$Year>1970) ## Since 1970
 ```
 
 ## Total scores.
@@ -31,11 +40,13 @@ library(plotly)
 theme_set(theme_bw())
 
 g0<-ggplot(dd,aes(x=Date,y=Total))
-g1<-g0+geom_point()+geom_smooth()
+g1<-g0+geom_point(aes(text=txt))+geom_smooth()
 ggplotly(g1)
 ```
 
-The mean for first innings total hit a low of 314 in 1980 and dipped again at the end of 1990's but is now higher than it is has ever been at 369.
+This is a plotly figure so the details can be investigated by hovering over the line or points.
+
+The mean for first innings total hit a low of 314 in 1980 and dipped again at the end of 1990's but is now higher than it is has ever been, at 369.
 
 It might be argued that this could be attributable to changes in which teams are playing on which grounds. Looking at the individual patterns for each team.
 
@@ -71,7 +82,7 @@ It could be that first innings scores have increased over time simply because th
 
 ```{r}
 g0<-ggplot(dd,aes(x=Date,y=RPO))
-g1<-g0+geom_point()+geom_smooth()
+g1<-g0+geom_point(aes(text=txt))+geom_smooth()
 ggplotly(g1)
 ```
 
@@ -89,29 +100,6 @@ mod<-lmer(data=dd,RPO~Year+(1|Team)+(1|Ground))
 summary(mod)
 ```
 
+# Conclusion
 
-
-## Strike rate for innings over 40
-
-```{r,warning=FALSE,message=FALSE}
-d<-read.csv("innings_fixed.csv")
-d$Date<-as.Date(d$Date)
-
-dd<-subset(d, d$Runs>40)
-dd$txt<-paste(dd$Player,dd$Runs,dd$Opposition,sep=" ")
-dd$Batsman<-"Other"
-dd$Batsman[grep("Boycott",dd$Player)]<-"Boycott"
-dd$Batsman[grep("AN Cook",dd$Player)]<-"Cook"
-dd$Batsman[grep("Root",dd$Player)]<-"Root"
-dd$Batsman[grep("Botham",dd$Player)]<-"Botham"
-dd$Batsman[grep("Atherton",dd$Player)]<-"Atherton"
-dd$Batsman[grep("Vaugan",dd$Player)]<-"Vaughan"
-dd$Batsman[grep("Pietersen",dd$Player)]<-"Pietersen"
-dd<-subset(dd,dd$Year>1970)
-dd<-subset(dd,dd$Country=="ENG")
-library(ggplot2)
-g0<-ggplot(dd,aes(x=Date,y=SR,colour=Batsman))
-g1<-g0+geom_point(size=0.5,aes(text=txt))+geom_smooth(se=FALSE) 
-ggplotly(g1)
-```
-
+There is evidence that Geoffrey Boycott is right. Test cricket does seem to have been influenced by twenty20. The result has been to speed up coring rates. However this does not seem to have reduced the number of runs scored overall in the first innings, when players are most focussed on building a large total. In fact the reverse has occured. They're not playing with sticks of rhubarb, Geoffrey.
