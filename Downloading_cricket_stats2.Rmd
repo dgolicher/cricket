@@ -1,0 +1,108 @@
+---
+title: "Downloading cricket stats"
+author: "Duncan Golicher"
+date: "2017-8-4"
+output: html_document
+---
+
+## Introduction
+
+Cricket could be a rich source of data for carrying aut some fun stastistics. It would be nice to have access to the full relational data base used on test match special, but that is not available directly online. Although Wisden and others do possess a lot of data it is typically presented as bite sized chunks through their searchable web sites. I did find an R package called cricketr with a function to download innings from ESPNcricinfo. Unfortunately  that didn't really help directly as it just pulled down the records for individual batmen and suggested that the ID number of the player had to be looked up first. The website presents all the data ordered from the highest score to the lowest in pages containing 50 records at a time as 1815 pages.  So although it took R two hours to pull down the data I was able to set it up to iterate over the pages and bring it all in just by modifying a few lines in the cricketr function.
+
+## Data files uploaded to https://github.com/dgolicher/cricket
+
+```{r}
+library("cricketr")
+library("XML")
+```
+
+```{r,eval=FALSE}
+i<-1
+url<-paste("http://stats.espncricinfo.com/ci/engine/stats/index.html?class=1;page=",i,";template=results;type=batting;view=innings",sep="")
+#
+
+tables <-readHTMLTable(url, stringsAsFactors = F)
+t <- tables$"Innings by innings list"
+
+for (i in 2:1815)
+{
+
+url<-paste("http://stats.espncricinfo.com/ci/engine/stats/index.html?class=1;page=",i,";template=results;type=batting;view=innings",sep="")
+try(tables <-readHTMLTable(url, stringsAsFactors = F))
+try(tt <- tables$"Innings by innings list")
+try(t<-rbind(t,tt))
+}
+#write.csv(d,"innings-all.csv")
+```
+
+This is all a bit of a hack as it would need to be run through again in order to update the data table in the future. However it worked for the purpose in hand, and it produced all the historical records for all test batsmen up to the beginning of August 2017. 
+
+
+## Sorting out the data
+
+Once I had the data the next challenge involved separating the information in the columns into a useable form. The Runs column included an asterix for not out innings that led it to be interpreted as a factor. The player column included the team in brackets, but there was no column for the country for which the batman played. The date column needed converting into the date format.
+
+```{r,message=FALSE,warning=FALSE,eval=FALSE}
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+d<-read.csv("innings-all.csv")
+
+d$Player<-as.character(d$Player) ## Can leave the team name in
+d$Country<- unlist(sub("\\).*", "", sub(".*\\(", "", d$Player)) ) ## Extract the country from the player's name
+d$Notout<-gsub('[0-9]+', '', d$Runs) ## Set up a column for not out innings
+d$Notout<-gsub("\\*","TRUE",d$Notout) ## Convert asterixs
+d$Runs<-as.numeric(gsub("\\D+", "", d$Runs)) ## Now turn the runs as a numeric column
+d$Date<-as.Date(d$Start.Date,format="%d %b %Y") ## Set up the date format
+d$Year<-year(d$Date)
+d$Day<-day(d$Date)
+d$Month<-month(d$Date)
+d$Yday<-yday(d$Date)
+d$BF<-as.numeric(as.character(d$BF))
+d$SR<-as.numeric(as.character(d$SR))
+d$Fours<-as.numeric(as.character(d$X4s))
+d$Sixs<-as.numeric(as.character(d$X6s))
+
+write.csv(d,"innings_fixed.csv")
+```
+
+Unfortunately some of the older records do not include data for balls faced so we can't calculate the strike rate.
+
+The file can be downloaded here.
+
+https://www.dropbox.com/s/45ir9yk1ppaa4mb/innings_fixed.csv?dl=0
+
+
+## Downloading match data
+
+The following code will download and fix some of the issues with the data on match innnings..
+
+```{r,eval=FALSE}
+
+i<-1
+url<-paste("http://stats.espncricinfo.com/ci/engine/stats/index.html?class=1;page=",i,";template=results;type=team;view=innings",sep="")
+
+tables <-readHTMLTable(url, stringsAsFactors = F)
+t <- tables$"Innings by innings list"
+
+for (i in 2:165)
+{
+
+url<-paste("http://stats.espncricinfo.com/ci/engine/stats/index.html?class=1;page=",i,";template=results;type=team;view=innings",sep="")
+
+tables <-readHTMLTable(url, stringsAsFactors = F)
+tt <- tables$"Innings by innings list"
+t<-rbind(t,tt)
+}
+
+t$Total<-as.numeric(unlist(sub("\\/.*", "", t$Score)) )
+t$Date<-as.Date(t$"Start Date",format="%d %b %Y") ## Set up the date format
+t$Year<-year(t$Date)
+t$Day<-day(t$Date)
+t$Month<-month(t$Date)
+t$Yday<-yday(t$Date)
+t$RPO<-as.numeric(as.character(t$RPO))
+write.csv(t,"match_innings.csv")
+
+```
+

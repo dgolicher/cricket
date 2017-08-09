@@ -1,0 +1,68 @@
+---
+title: "Medians"
+author: "Duncan Golicher"
+date: "2017-8-8"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(plotly)
+knitr::opts_chunk$set(warning = FALSE,message = FALSE,error = TRUE)
+
+d<-read.csv("innings_fixed.csv")
+d$Date<-as.Date(d$Date)
+d<-subset(d,d$Year>1960)
+d<-d[!is.na(d$Runs),]
+
+d %>% group_by(Player) %>% mutate(start=min(Date)) -> d
+d$time<-d$Date-d$start
+d<-subset(d,d$time<9000)
+library(mgcv)
+d$Time<-as.numeric(d$time)
+b2 <- gamm(data=d,Runs~s(Time),random=list(Player=~1))
+plot(b2$gam)
+
+d %>%
+  group_by(Player) %>%
+  summarise(nins=n(),med=median(Runs),mean=mean(Runs),tm=max(time)) -> batsmen
+
+b<-subset(batsmen,batsmen$nins>150)
+
+players<-unique(b$Player)
+d<-subset(d,d$Player%in%players)
+d<-subset(d,d$Country=="ENG")
+library(dplyr)
+
+max(d$time)
+library(ggplot2)
+g0<-ggplot(d,aes(x=time,y=Runs,group=Player))
+g1<-g0+geom_smooth(se=FALSE)
+ggplotly(g1)
+```
+
+
+
+```{r}
+
+```
+
+```{r}
+
+
+d %>%
+  group_by(Player) %>%
+  summarise(nins=n(),med=median(Runs),mean=mean(Runs),tm=max(time)) -> batsmen
+```
+
+
+```{r}
+library(ggplot2)
+library(plotly)
+g0<-ggplot(subset(batsmen,batsmen$nins>20&batsmen$mean>35), aes(x=mean,y=med))
+g1<-g0+geom_point(aes(text=Player))
+ggplotly(g1)
+
+```
+

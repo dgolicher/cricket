@@ -1,0 +1,81 @@
+---
+title: "How likely is it to be out for 99?"
+author: "Duncan Golicher"
+date: "2017-8-4"
+output: html_document
+---
+
+## Introduction
+
+In the test against South Africa Johnny Bairstow frustratingly ended his innings on 99. Then Joe Root ended his on 49. Making a hundred is a more important milestone than making a fifty. I wondered how the effect of seeing the hundred in sight affects batsmen.  Data here.
+
+https://github.com/dgolicher/cricket
+
+## The data
+
+Innings are effectively right censored suvivorship data that could be analysed using Kaplan-Meier curves. However here I'll just look at completed innings that ended with the batsman out.
+
+```{r,message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(warning = FALSE,message = FALSE,error = TRUE)
+
+d<-read.csv("innings_fixed.csv")
+nhundreds<-length(d$Runs[d$Runs>99])
+nhundreds
+d$Date<-as.Date(d$Date)
+d<-subset(d, d$Notout!=TRUE)
+nnineties<-length(d$Runs[d$Runs>89&d$Runs<100])
+nnineties/(nhundreds+nnineties)
+nnineties
+nhundreds
+```
+
+## Frequency of all innings
+
+A ggplot barplot automatically uses counts of observations if no other information is provided. This can be zoomed to sections when using plotly.
+
+```{r}
+library(ggplot2)
+library(plotly)
+theme_set(theme_bw())
+g0<-ggplot(subset(d,d$Runs<110),aes(x=Runs))
+g1<-g0+geom_bar()
+ggplotly(g1)
+```
+
+Notice that the pattern follows a more or less exponential decay. The single most likely score for a batsman to make is zero, as all batsmen start on zero. From that point onwards the batsmen cannot be out on all possible scores, as the scoring does not move forward in singles.
+
+At the beginning of the sequence there is a second spike at four, as there are many combinations of strokes, including scoring a boundary that get a batsman to this point after starting on zero.
+
+```{r}
+g0<-ggplot(subset(d,d$Runs<7),aes(x=Runs))
+g1<-g0+geom_bar() + scale_x_discrete(limits=0:6)
+ggplotly(g1)
+```
+## Nervous nineties
+
+The frequency pattern in the nineties is interesting. A pure exponential decay would have a constant hazard. However the pattern deviates from this because batsmen have their eye on the target of 100 and adjust their scoring strokes accordingly. 
+
+```{r}
+g0<-ggplot(subset(d,d$Runs>89&d$Runs<110),aes(x=Runs))
+g1<-g0+geom_bar() + scale_x_discrete(limits=90:110)
+ggplotly(g1)
+```
+
+
+```{r}
+dd<-data.frame(table(d$Runs))
+names(dd)<-c("Runs","Freq")
+```
+
+
+```{r}
+
+dd<-data.frame(start=-1,end=d$Runs,event=ifelse(d$Notout==TRUE,0,1))
+library(survival)
+surv_ob<-Surv(dd$start,dd$end,dd$event)
+head(surv_ob)
+km <- survfit(surv_ob ~ 1, data = dd, conf.type = "log-log")
+km
+plot(km)
+```
+
