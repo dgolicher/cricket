@@ -1,3 +1,8 @@
+
+
+### This works by getting all the data on batting from the last year
+## In the same format as the original downloaded data
+
 library(XML)
 
 i<-1
@@ -27,6 +32,7 @@ library(lubridate)
 library(ggplot2)
 library(dplyr)
 
+## Go through all the same steps
 
 d$Player<-as.character(d$Player) ## Can leave the team name in
 d$Country<- unlist(sub("\\).*", "", sub(".*\\(", "", d$Player)) ) ## Extract the country from the player's name
@@ -45,5 +51,12 @@ d$Sixs<-as.numeric(as.character(d$"6s"))
 d$type<-d$Opposition
 d$type<-sub(" v.*", "", d$type)
 d$Opposition<- sub(".*v", "v", d$Opposition)
+## Write to file and read to make sure any coercion is the same
 
-write.csv(d,"all-innings.csv")
+write.csv(d,"all-innings-2017.csv")
+d1<-read.csv("all-innings.csv")
+d2<-read.csv("all-innings-2017.csv")
+names(d2)
+names(d1)
+## These are the same in this case so the data frames can be combined with rbind, after 
+## Removing pre 2017 data from the first one.

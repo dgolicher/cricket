@@ -1,3 +1,5 @@
+## See notes on updating batting
+
 library(XML)
 
 i<-1
@@ -36,16 +38,17 @@ d$Day<-day(d$Date)
 d$Month<-month(d$Date)
 d$Yday<-yday(d$Date)
 d$Overs<-as.numeric(as.character(d$Overs))
-d$BPO<-6
+d$BPO<-6 ## A potential problem here, as all modern games have 6, so column missing
 d$Mdns<-as.numeric(as.character(d$"Mdns"))
 d$Runs<-as.numeric(as.character(d$"Runs"))
 d$type<-d$Opposition
 d$type<-sub(" v.*", "", d$type)
 d$Opposition<- sub(".*v", "v", d$Opposition)
 
+## The problem with the BPO column needs fixing as they don't match
 write.csv(d,"all-bowling-2017.csv")
 d1<-read.csv("all-bowling.csv")
-d1<-d1[,-which(names(d1)=="BPO")]
+d1<-d1[,-which(names(d1)=="BPO")] ## Remove the whole column
 d1<-subset(d1,d1$Year<yr)
 d2<-read.csv("all-bowling-2017.csv")
 d2<-d2[,-which(names(d2)=="BPO")]
